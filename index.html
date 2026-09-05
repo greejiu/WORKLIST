@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>워크 · 지원 내역</title>
+<style>
+  :root{
+    --bg:#f7f7f8; --card:#ffffff; --line:#e6e6e9; --text:#1c1c1f; --sub:#7a7a82;
+    --accent:#4f6df5; --accent-soft:#eef1ff; --danger:#e5484d; --ok:#1fa06b;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Segoe UI",Roboto,sans-serif;}
+  header{padding:16px 16px 8px;position:sticky;top:0;background:var(--bg);z-index:5;}
+  h1{font-size:18px;margin:0 0 12px;}
+  #authBox{max-width:360px;margin:80px auto;padding:24px;background:var(--card);border:1px solid var(--line);border-radius:16px;}
+  #authBox input{width:100%;padding:10px 12px;margin-bottom:8px;border:1px solid var(--line);border-radius:10px;font-size:14px;}
+  #authBox button{width:100%;padding:10px;border:none;border-radius:10px;background:var(--accent);color:#fff;font-size:14px;cursor:pointer;margin-top:4px;}
+  #authBox .alt{background:none;color:var(--accent);font-size:12px;padding:6px;}
+  #authMsg{font-size:12px;color:var(--danger);min-height:16px;margin-top:4px;}
+
+  .tabs{display:flex;gap:8px;padding:0 16px;}
+  .tab{flex:1;text-align:center;padding:10px 0;border-radius:999px;background:var(--card);border:1px solid var(--line);font-size:13px;color:var(--sub);cursor:pointer;}
+  .tab.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+
+  main{max-width:640px;margin:0 auto;padding:12px 16px 80px;}
+  .count{font-size:12px;color:var(--sub);margin:10px 2px;}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:10px;}
+  .card .row1{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;}
+  .card .company{font-weight:600;font-size:14px;}
+  .card .title{font-size:13px;color:var(--sub);margin-top:2px;}
+  .card .meta{font-size:12px;color:var(--sub);margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;}
+  .card .meta span{background:var(--bg);padding:2px 8px;border-radius:999px;}
+  .card .actions{display:flex;gap:6px;align-items:center;margin-top:10px;}
+  select.status{flex:1;padding:6px 8px;border-radius:8px;border:1px solid var(--line);font-size:12px;background:#fff;}
+  .card a.link{font-size:12px;color:var(--accent);text-decoration:none;}
+  .iconbtn{border:none;background:none;color:var(--sub);font-size:12px;cursor:pointer;padding:6px;}
+  .iconbtn.edit{color:var(--accent);}
+  .iconbtn.del{color:var(--danger);}
+
+  .fab{position:fixed;right:20px;bottom:24px;width:52px;height:52px;border-radius:50%;background:var(--accent);color:#fff;border:none;font-size:26px;box-shadow:0 6px 16px rgba(79,109,245,.4);cursor:pointer;}
+
+  .sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:flex-end;justify-content:center;z-index:20;}
+  .sheet-bg.open{display:flex;}
+  .sheet{background:#fff;width:100%;max-width:640px;border-radius:20px 20px 0 0;padding:18px 16px 24px;max-height:88vh;overflow-y:auto;}
+  .sheet h2{font-size:15px;margin:0 0 12px;}
+  .field label{font-size:12px;color:var(--sub);display:block;margin-bottom:4px;}
+  .field{margin-bottom:10px;}
+  .field input, .field select, .field textarea{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:10px;font-size:14px;font-family:inherit;}
+  .field.split{display:flex;gap:8px;}
+  .field.split > div{flex:1;}
+  .req::after{content:" *";color:var(--danger);}
+  .sheet-actions{display:flex;gap:8px;margin-top:14px;}
+  .sheet-actions button{flex:1;padding:11px;border-radius:10px;border:none;font-size:14px;cursor:pointer;}
+  .btn-primary{background:var(--accent);color:#fff;}
+  .btn-ghost{background:var(--bg);color:var(--sub);}
+  .btn-danger-outline{background:#fff;border:1px solid var(--danger) !important;color:var(--danger);}
+
+  .empty{text-align:center;color:var(--sub);font-size:13px;padding:60px 0;}
+  #logoutBtn{position:absolute;right:16px;top:16px;background:none;border:none;color:var(--sub);font-size:12px;cursor:pointer;}
+</style>
+</head>
+<body>
+
+<div id="authBox">
+  <h1>워크 · 지원 내역</h1>
+  <div id="authMsg"></div>
+  <input id="authEmail" type="email" placeholder="이메일" autocomplete="username" />
+  <input id="authPw" type="password" placeholder="비밀번호 (8자 이상)" autocomplete="current-password" />
+  <button id="loginBtn">로그인</button>
+  <button id="signupBtn" class="alt">계정이 없다면 회원가입</button>
+</div>
+
+<div id="app" style="display:none;">
+  <header>
+    <div style="position:relative;">
+      <h1>워크 · 지원 내역</h1>
+      <button id="logoutBtn">로그아웃</button>
+    </div>
+    <div class="tabs">
+      <div class="tab active" data-type="정규직">정규직</div>
+      <div class="tab" data-type="알바">알바</div>
+    </div>
+  </header>
+  <main>
+    <div class="count" id="countLine"></div>
+    <div id="list"></div>
+    <div id="emptyMsg" class="empty" style="display:none;">아직 등록한 지원 내역이 없어요.<br/>오른쪽 아래 + 버튼으로 첫 건을 추가해보세요.</div>
+  </main>
+  <button class="fab" id="addBtn">+</button>
+</div>
+
+<div class="sheet-bg" id="sheetBg">
+  <div class="sheet">
+    <h2 id="sheetTitle">지원 내역 추가</h2>
+    <div class="field">
+      <label class="req">회사명</label>
+      <input id="f_company" type="text" placeholder="예: 카카오엔터테인먼트" />
+    </div>
+    <div class="field">
+      <label class="req">공고명</label>
+      <input id="f_title" type="text" placeholder="예: 웹소설 사업 운영 지원 어시스턴트" />
+    </div>
+    <div class="field split">
+      <div>
+        <label>구분</label>
+        <select id="f_jobtype">
+          <option value="정규직">정규직</option>
+          <option value="알바">알바</option>
+        </select>
+      </div>
+      <div>
+        <label>지원날짜</label>
+        <input id="f_date" type="date" />
+      </div>
+    </div>
+    <div class="field split">
+      <div>
+        <label>지역</label>
+        <input id="f_region" type="text" placeholder="예: 강릉" />
+      </div>
+      <div>
+        <label>상태</label>
+        <select id="f_status">
+          <option>지원완료</option>
+          <option>서류전형중</option>
+          <option>면접예정</option>
+          <option>면접완료</option>
+          <option>합격</option>
+          <option>불합격</option>
+          <option>보류</option>
+        </select>
+      </div>
+    </div>
+    <div class="field split">
+      <div>
+        <label>급여 구분</label>
+        <select id="f_salarytype">
+          <option value="">-</option>
+          <option value="연봉">연봉</option>
+          <option value="월급">월급</option>
+          <option value="시급">시급</option>
+        </select>
+      </div>
+      <div>
+        <label>급여 금액</label>
+        <input id="f_salaryamount" type="text" placeholder="예: 2701만원" />
+      </div>
+    </div>
+    <div class="field">
+      <label>공고 링크</label>
+      <input id="f_link" type="url" placeholder="https://..." />
+    </div>
+    <div class="field">
+      <label>메모</label>
+      <textarea id="f_note" rows="2" placeholder="선택 입력"></textarea>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-ghost" id="cancelBtn">취소</button>
+      <button class="btn-danger-outline" id="deleteBtn" style="display:none;">삭제</button>
+      <button class="btn-primary" id="saveBtn">저장</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+  // ── Supabase 설정 ──────────────────────────────────────
+  const SUPABASE_URL = "https://axzaccazzjrrbvpenija.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_ErJlhhtFXKEt2qrqJes_0g_gVe7bN7r";
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  let currentTab = "정규직";
+  let rows = [];
+  let editingId = null;
+
+  const $ = (id) => document.getElementById(id);
+
+  // ── 인증 ──────────────────────────────────────
+  $("loginBtn").onclick = async () => {
+    const email = $("authEmail").value.trim();
+    const password = $("authPw").value;
+    $("authMsg").textContent = "";
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+    if (error) { $("authMsg").textContent = error.message; return; }
+    await boot();
+  };
+  $("signupBtn").onclick = async () => {
+    const email = $("authEmail").value.trim();
+    const password = $("authPw").value;
+    $("authMsg").textContent = "";
+    if (password.length < 8) { $("authMsg").textContent = "비밀번호는 8자 이상이어야 해요."; return; }
+    const { error } = await sb.auth.signUp({ email, password });
+    if (error) { $("authMsg").textContent = error.message; return; }
+    $("authMsg").style.color = "var(--ok)";
+    $("authMsg").textContent = "가입 완료! 로그인 버튼을 눌러주세요.";
+  };
+  $("logoutBtn").onclick = async () => {
+    await sb.auth.signOut();
+    location.reload();
+  };
+
+  async function boot() {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) return;
+    $("authBox").style.display = "none";
+    $("app").style.display = "block";
+    await loadRows();
+  }
+
+  // ── 탭 ──────────────────────────────────────
+  document.querySelectorAll(".tab").forEach(el => {
+    el.onclick = () => {
+      document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+      el.classList.add("active");
+      currentTab = el.dataset.type;
+      render();
+    };
+  });
+
+  // ── 데이터 로드/렌더 ──────────────────────────────────────
+  async function loadRows() {
+    const { data, error } = await sb.from("applications").select("*").order("applied_date", { ascending: false }).order("created_at", { ascending: false });
+    if (error) { alert("불러오기 실패: " + error.message); return; }
+    rows = data || [];
+    render();
+  }
+
+  function render() {
+    const filtered = rows.filter(r => r.job_type === currentTab);
+    $("countLine").textContent = `${currentTab} · 총 ${filtered.length}건`;
+    $("emptyMsg").style.display = filtered.length ? "none" : "block";
+    $("list").innerHTML = filtered.map(r => cardHtml(r)).join("");
+
+    filtered.forEach(r => {
+      const sel = document.getElementById("status_" + r.id);
+      if (sel) sel.onchange = () => updateStatus(r.id, sel.value);
+      const editBtn = document.getElementById("edit_" + r.id);
+      if (editBtn) editBtn.onclick = () => openEdit(r);
+      const delBtn = document.getElementById("delrow_" + r.id);
+      if (delBtn) delBtn.onclick = () => removeRow(r.id);
+    });
+  }
+
+  function cardHtml(r) {
+    const statusOptions = ["지원완료","서류전형중","면접예정","면접완료","합격","불합격","보류"]
+      .map(s => `<option value="${s}" ${s===r.status?"selected":""}>${s}</option>`).join("");
+    const salary = r.salary_type ? `${r.salary_type} ${r.salary_amount || ""}`.trim() : "";
+    return `
+      <div class="card">
+        <div class="row1">
+          <div>
+            <div class="company">${escapeHtml(r.company)}</div>
+            <div class="title">${escapeHtml(r.job_title)}</div>
+          </div>
+          ${r.link_url ? `<a class="link" href="${escapeAttr(r.link_url)}" target="_blank" rel="noopener">공고보기</a>` : ""}
+        </div>
+        <div class="meta">
+          ${r.applied_date ? `<span>${r.applied_date}</span>` : ""}
+          ${r.region ? `<span>${escapeHtml(r.region)}</span>` : ""}
+          ${salary ? `<span>${escapeHtml(salary)}</span>` : ""}
+        </div>
+        <div class="actions">
+          <select class="status" id="status_${r.id}">${statusOptions}</select>
+          <button class="iconbtn edit" id="edit_${r.id}">수정</button>
+          <button class="iconbtn del" id="delrow_${r.id}">삭제</button>
+        </div>
+      </div>`;
+  }
+
+  async function updateStatus(id, status) {
+    const { error } = await sb.from("applications").update({ status }).eq("id", id);
+    if (error) { alert("상태 변경 실패: " + error.message); return; }
+    const row = rows.find(r => r.id === id);
+    if (row) row.status = status;
+  }
+
+  async function removeRow(id) {
+    if (!confirm("이 지원 내역을 삭제할까요?")) return;
+    const { error } = await sb.from("applications").delete().eq("id", id);
+    if (error) { alert("삭제 실패: " + error.message); return; }
+    rows = rows.filter(r => r.id !== id);
+    render();
+  }
+
+  // ── 추가/수정 시트 ──────────────────────────────────────
+  $("addBtn").onclick = () => openAdd();
+  $("cancelBtn").onclick = closeSheet;
+
+  function openAdd() {
+    editingId = null;
+    $("sheetTitle").textContent = "지원 내역 추가";
+    $("deleteBtn").style.display = "none";
+    ["company","title","region","link","note","salaryamount"].forEach(k => $("f_"+k).value = "");
+    $("f_jobtype").value = currentTab;
+    $("f_status").value = "지원완료";
+    $("f_salarytype").value = "";
+    $("f_date").value = new Date().toISOString().slice(0,10);
+    $("sheetBg").classList.add("open");
+  }
+
+  function openEdit(r) {
+    editingId = r.id;
+    $("sheetTitle").textContent = "지원 내역 수정";
+    $("deleteBtn").style.display = "block";
+    $("f_company").value = r.company || "";
+    $("f_title").value = r.job_title || "";
+    $("f_jobtype").value = r.job_type || "정규직";
+    $("f_date").value = r.applied_date || "";
+    $("f_region").value = r.region || "";
+    $("f_status").value = r.status || "지원완료";
+    $("f_salarytype").value = r.salary_type || "";
+    $("f_salaryamount").value = r.salary_amount || "";
+    $("f_link").value = r.link_url || "";
+    $("f_note").value = r.note || "";
+    $("sheetBg").classList.add("open");
+  }
+
+  function closeSheet() { $("sheetBg").classList.remove("open"); }
+
+  $("saveBtn").onclick = async () => {
+    const company = $("f_company").value.trim();
+    const job_title = $("f_title").value.trim();
+    if (!company || !job_title) { alert("회사명과 공고명은 꼭 입력해주세요."); return; }
+    const payload = {
+      company, job_title,
+      job_type: $("f_jobtype").value,
+      applied_date: $("f_date").value || null,
+      region: $("f_region").value.trim() || null,
+      status: $("f_status").value,
+      salary_type: $("f_salarytype").value || null,
+      salary_amount: $("f_salaryamount").value.trim() || null,
+      link_url: $("f_link").value.trim() || null,
+      note: $("f_note").value.trim() || null,
+    };
+    let error;
+    if (editingId) {
+      ({ error } = await sb.from("applications").update(payload).eq("id", editingId));
+    } else {
+      ({ error } = await sb.from("applications").insert(payload));
+    }
+    if (error) { alert("저장 실패: " + error.message); return; }
+    closeSheet();
+    await loadRows();
+  };
+
+  $("deleteBtn").onclick = async () => {
+    if (!editingId) return;
+    if (!confirm("이 지원 내역을 삭제할까요?")) return;
+    const { error } = await sb.from("applications").delete().eq("id", editingId);
+    if (error) { alert("삭제 실패: " + error.message); return; }
+    closeSheet();
+    await loadRows();
+  };
+
+  function escapeHtml(s){ return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+  function escapeAttr(s){ return escapeHtml(s); }
+
+  // ── 시작 ──────────────────────────────────────
+  boot();
+</script>
+</body>
+</html>
