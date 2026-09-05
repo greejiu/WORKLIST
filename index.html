@@ -50,6 +50,15 @@
   .field input, .field select, .field textarea{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:10px;font-size:14px;font-family:inherit;}
   .field.split{display:flex;gap:8px;}
   .field.split > div{flex:1;}
+  .autofill{background:var(--accent-soft);border:1px solid var(--line);border-radius:12px;padding:10px;margin-bottom:12px;}
+  .autofill .row{display:flex;gap:6px;}
+  .autofill input{flex:1;padding:9px 10px;border:1px solid var(--line);border-radius:10px;font-size:13px;}
+  .autofill button{padding:9px 12px;border:none;border-radius:8px;background:var(--accent);color:#fff;font-size:13px;cursor:pointer;white-space:nowrap;}
+  .autofill button:disabled{opacity:.6;cursor:default;}
+  .autofill .msg{font-size:12px;color:var(--sub);margin-top:6px;line-height:1.4;}
+  .autofill textarea{width:100%;margin-top:8px;padding:8px;border:1px solid var(--line);border-radius:8px;font-size:13px;font-family:inherit;}
+  .autofill .pastebox{display:none;}
+  .autofill .pastebox.open{display:block;}
   .req::after{content:" *";color:var(--danger);}
   .sheet-actions{display:flex;gap:8px;margin-top:14px;}
   .sheet-actions button{flex:1;padding:11px;border-radius:10px;border:none;font-size:14px;cursor:pointer;}
@@ -94,6 +103,17 @@
 <div class="sheet-bg" id="sheetBg">
   <div class="sheet">
     <h2 id="sheetTitle">지원 내역 추가</h2>
+    <div class="autofill">
+      <div class="row">
+        <input id="f_autourl" type="url" placeholder="공고 링크를 붙여넣으면 자동으로 채워요" />
+        <button type="button" id="autoFillBtn">자동입력</button>
+      </div>
+      <div class="msg" id="autoFillMsg"></div>
+      <div class="pastebox" id="pasteBox">
+        <textarea id="f_pastetext" rows="4" placeholder="공고 페이지에서 전체 복사(Ctrl+A → Ctrl+C)한 내용을 여기에 붙여넣어주세요"></textarea>
+        <button type="button" id="pasteFillBtn" style="margin-top:6px;width:100%;">붙여넣은 내용으로 채우기</button>
+      </div>
+    </div>
     <div class="field">
       <label class="req">회사명</label>
       <input id="f_company" type="text" placeholder="예: 카카오엔터테인먼트" />
@@ -284,6 +304,57 @@
     render();
   }
 
+  // ── 공고 자동입력 ──────────────────────────────────────
+  function applyExtracted(data, url) {
+    if (data.company) $("f_company").value = data.company;
+    if (data.job_title) $("f_title").value = data.job_title;
+    if (data.region) $("f_region").value = data.region;
+    if (data.salary_type) $("f_salarytype").value = data.salary_type;
+    if (data.salary_amount) $("f_salaryamount").value = data.salary_amount;
+    if (data.note && !$("f_note").value.trim()) $("f_note").value = data.note;
+    if (url) $("f_link").value = url;
+  }
+
+  async function runAnalyze(body, url) {
+    $("autoFillBtn").disabled = true;
+    $("autoFillBtn").textContent = "분석 중...";
+    $("autoFillMsg").textContent = "";
+    try {
+      const { data, error } = await sb.functions.invoke("parse-job-posting", { body });
+      if (error) throw error;
+      if (data && data.ok) {
+        applyExtracted(data.data || {}, url);
+        $("pasteBox").classList.remove("open");
+        $("autoFillMsg").textContent = "자동으로 채웠어요. 내용 확인하고 저장해주세요 (틀린 부분은 직접 고쳐주세요).";
+      } else if (data && data.needsPaste) {
+        $("pasteBox").classList.add("open");
+        $("autoFillMsg").textContent = "이 사이트는 자동으로 못 가져왔어요. 공고 페이지에서 전체 복사해서 아래에 붙여넣어 주세요.";
+      } else {
+        $("pasteBox").classList.add("open");
+        $("autoFillMsg").textContent = "분석에 실패했어요. 공고 내용을 복사해서 아래에 붙여넣어 주세요.";
+      }
+    } catch (e) {
+      $("pasteBox").classList.add("open");
+      $("autoFillMsg").textContent = "분석 중 오류가 발생했어요. 공고 내용을 복사해서 아래에 붙여넣어 주세요.";
+    } finally {
+      $("autoFillBtn").disabled = false;
+      $("autoFillBtn").textContent = "자동입력";
+    }
+  }
+
+  $("autoFillBtn").onclick = () => {
+    const url = $("f_autourl").value.trim();
+    if (!url) { $("autoFillMsg").textContent = "공고 링크를 먼저 입력해주세요."; return; }
+    runAnalyze({ url }, url);
+  };
+
+  $("pasteFillBtn").onclick = () => {
+    const text = $("f_pastetext").value.trim();
+    if (text.length < 30) { $("autoFillMsg").textContent = "내용이 너무 짧아요. 공고 페이지 내용을 좀 더 붙여넣어주세요."; return; }
+    const url = $("f_autourl").value.trim();
+    runAnalyze({ text }, url);
+  };
+
   // ── 추가/수정 시트 ──────────────────────────────────────
   $("addBtn").onclick = () => openAdd();
   $("cancelBtn").onclick = closeSheet;
@@ -297,6 +368,10 @@
     $("f_status").value = "지원완료";
     $("f_salarytype").value = "";
     $("f_date").value = new Date().toISOString().slice(0,10);
+    $("f_autourl").value = "";
+    $("f_pastetext").value = "";
+    $("autoFillMsg").textContent = "";
+    $("pasteBox").classList.remove("open");
     $("sheetBg").classList.add("open");
   }
 
@@ -314,6 +389,10 @@
     $("f_salaryamount").value = r.salary_amount || "";
     $("f_link").value = r.link_url || "";
     $("f_note").value = r.note || "";
+    $("f_autourl").value = r.link_url || "";
+    $("f_pastetext").value = "";
+    $("autoFillMsg").textContent = "";
+    $("pasteBox").classList.remove("open");
     $("sheetBg").classList.add("open");
   }
 
