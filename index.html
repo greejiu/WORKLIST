@@ -105,10 +105,6 @@
       <div class="tab active" data-view="list">지원내역</div>
       <div class="tab" data-view="calendar">면접캘린더</div>
     </div>
-    <div class="tabs" id="jobTabs">
-      <div class="tab active" data-type="정규직">정규직</div>
-      <div class="tab" data-type="알바">알바</div>
-    </div>
     <div class="tabs" id="calSubTabs" style="display:none;">
       <div class="tab active" data-calview="month">달력</div>
       <div class="tab" data-calview="agenda">목록</div>
@@ -232,7 +228,6 @@
   const SUPABASE_ANON_KEY = "sb_publishable_ErJlhhtFXKEt2qrqJes_0g_gVe7bN7r";
   const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-  let currentTab = "정규직";
   let rows = [];
   let editingId = null;
   let currentView = "list";
@@ -275,15 +270,6 @@
   }
 
   // ── 탭 ──────────────────────────────────────
-  document.querySelectorAll("#jobTabs .tab").forEach(el => {
-    el.onclick = () => {
-      document.querySelectorAll("#jobTabs .tab").forEach(t => t.classList.remove("active"));
-      el.classList.add("active");
-      currentTab = el.dataset.type;
-      render();
-    };
-  });
-
   document.querySelectorAll("#viewTabs .tab").forEach(el => {
     el.onclick = () => {
       document.querySelectorAll("#viewTabs .tab").forEach(t => t.classList.remove("active"));
@@ -291,7 +277,6 @@
       currentView = el.dataset.view;
       $("listView").style.display = currentView === "list" ? "block" : "none";
       $("calendarView").style.display = currentView === "calendar" ? "block" : "none";
-      $("jobTabs").style.display = currentView === "list" ? "flex" : "none";
       $("calSubTabs").style.display = currentView === "calendar" ? "flex" : "none";
       if (currentView === "calendar") renderCalendarSection();
     };
@@ -325,8 +310,8 @@
   }
 
   function render() {
-    const filtered = rows.filter(r => r.job_type === currentTab);
-    $("countLine").textContent = `${currentTab} · 총 ${filtered.length}건`;
+    const filtered = rows;
+    $("countLine").textContent = `총 ${filtered.length}건`;
     $("emptyMsg").style.display = filtered.length ? "none" : "block";
     $("list").innerHTML = filtered.map(r => cardHtml(r)).join("");
 
@@ -354,6 +339,7 @@
           ${r.link_url ? `<a class="link" href="${escapeAttr(r.link_url)}" target="_blank" rel="noopener">공고보기</a>` : ""}
         </div>
         <div class="meta">
+          <span>${escapeHtml(r.job_type)}</span>
           ${r.applied_date ? `<span>${r.applied_date}</span>` : ""}
           ${r.region ? `<span>${escapeHtml(r.region)}</span>` : ""}
           ${salary ? `<span>${escapeHtml(salary)}</span>` : ""}
@@ -588,7 +574,7 @@
     $("sheetTitle").textContent = "지원 내역 추가";
     $("deleteBtn").style.display = "none";
     ["company","title","region","link","note","salaryamount","interview"].forEach(k => $("f_"+k).value = "");
-    $("f_jobtype").value = currentTab;
+    $("f_jobtype").value = "정규직";
     $("f_status").value = "지원완료";
     $("f_salarytype").value = "";
     $("f_date").value = new Date().toISOString().slice(0,10);
