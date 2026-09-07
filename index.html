@@ -19,9 +19,22 @@
   #authBox .alt{background:none;color:var(--accent);font-size:12px;padding:6px;}
   #authMsg{font-size:12px;color:var(--danger);min-height:16px;margin-top:4px;}
 
-  .tabs{display:flex;gap:8px;padding:0 16px;}
+  .tabs{display:flex;gap:8px;padding:0 16px;margin-bottom:8px;}
   .tab{flex:1;text-align:center;padding:10px 0;border-radius:999px;background:var(--card);border:1px solid var(--line);font-size:13px;color:var(--sub);cursor:pointer;}
   .tab.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+
+  .calWrap{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:12px;}
+  .calHeader{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+  .calHeader .calMonthLabel{font-size:14px;font-weight:600;}
+  .calNav{border:none;background:var(--bg);width:28px;height:28px;border-radius:50%;font-size:16px;cursor:pointer;color:var(--sub);}
+  .calDow{display:grid;grid-template-columns:repeat(7,1fr);text-align:center;font-size:11px;color:var(--sub);margin-bottom:4px;}
+  .calDays{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+  .calCell{aspect-ratio:1;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:12px;cursor:pointer;color:var(--text);}
+  .calCell.empty{cursor:default;}
+  .calCell.today .dnum{color:var(--accent);font-weight:700;}
+  .calCell.selected{background:var(--accent-soft);}
+  .calCell:not(.empty):hover{background:var(--bg);}
+  .calCell .dot{width:5px;height:5px;border-radius:50%;background:var(--accent);margin-top:2px;}
 
   main{max-width:640px;margin:0 auto;padding:12px 16px 80px;}
   .count{font-size:12px;color:var(--sub);margin:10px 2px;}
@@ -88,15 +101,38 @@
       <h1>워크리스트</h1>
       <button id="logoutBtn">로그아웃</button>
     </div>
-    <div class="tabs">
+    <div class="tabs" id="viewTabs">
+      <div class="tab active" data-view="list">지원내역</div>
+      <div class="tab" data-view="calendar">면접캘린더</div>
+    </div>
+    <div class="tabs" id="jobTabs">
       <div class="tab active" data-type="정규직">정규직</div>
       <div class="tab" data-type="알바">알바</div>
     </div>
+    <div class="tabs" id="calSubTabs" style="display:none;">
+      <div class="tab active" data-calview="month">달력</div>
+      <div class="tab" data-calview="agenda">목록</div>
+    </div>
   </header>
   <main>
-    <div class="count" id="countLine"></div>
-    <div id="list"></div>
-    <div id="emptyMsg" class="empty" style="display:none;">아직 등록한 지원 내역이 없어요.<br/>오른쪽 아래 + 버튼으로 첫 건을 추가해보세요.</div>
+    <div id="listView">
+      <div class="count" id="countLine"></div>
+      <div id="list"></div>
+      <div id="emptyMsg" class="empty" style="display:none;">아직 등록한 지원 내역이 없어요.<br/>오른쪽 아래 + 버튼으로 첫 건을 추가해보세요.</div>
+    </div>
+    <div id="calendarView" style="display:none;">
+      <div class="calWrap" id="calMonthWrap">
+        <div class="calHeader">
+          <button class="calNav" id="calPrev">‹</button>
+          <div class="calMonthLabel" id="calMonthLabel"></div>
+          <button class="calNav" id="calNext">›</button>
+        </div>
+        <div id="calGrid"></div>
+      </div>
+      <div id="calDayDetail"></div>
+      <div id="calAgenda" style="display:none;"></div>
+      <div id="calEmptyMsg" class="empty" style="display:none;">등록된 면접 일정이 없어요.<br/>지원 내역 추가/수정에서 "면접 일시"를 입력하면 여기 표시돼요.</div>
+    </div>
   </main>
   <button class="fab" id="addBtn">+</button>
 </div>
@@ -135,6 +171,10 @@
         <label>지원날짜</label>
         <input id="f_date" type="date" />
       </div>
+    </div>
+    <div class="field">
+      <label>면접 일시</label>
+      <input id="f_interview" type="datetime-local" />
     </div>
     <div class="field split">
       <div>
@@ -195,6 +235,10 @@
   let currentTab = "정규직";
   let rows = [];
   let editingId = null;
+  let currentView = "list";
+  let calCursor = new Date();
+  let calViewMode = "month";
+  let calSelectedDate = null;
 
   const $ = (id) => document.getElementById(id);
 
@@ -231,14 +275,45 @@
   }
 
   // ── 탭 ──────────────────────────────────────
-  document.querySelectorAll(".tab").forEach(el => {
+  document.querySelectorAll("#jobTabs .tab").forEach(el => {
     el.onclick = () => {
-      document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+      document.querySelectorAll("#jobTabs .tab").forEach(t => t.classList.remove("active"));
       el.classList.add("active");
       currentTab = el.dataset.type;
       render();
     };
   });
+
+  document.querySelectorAll("#viewTabs .tab").forEach(el => {
+    el.onclick = () => {
+      document.querySelectorAll("#viewTabs .tab").forEach(t => t.classList.remove("active"));
+      el.classList.add("active");
+      currentView = el.dataset.view;
+      $("listView").style.display = currentView === "list" ? "block" : "none";
+      $("calendarView").style.display = currentView === "calendar" ? "block" : "none";
+      $("jobTabs").style.display = currentView === "list" ? "flex" : "none";
+      $("calSubTabs").style.display = currentView === "calendar" ? "flex" : "none";
+      if (currentView === "calendar") renderCalendarSection();
+    };
+  });
+
+  document.querySelectorAll("#calSubTabs .tab").forEach(el => {
+    el.onclick = () => {
+      document.querySelectorAll("#calSubTabs .tab").forEach(t => t.classList.remove("active"));
+      el.classList.add("active");
+      calViewMode = el.dataset.calview;
+      renderCalendarSection();
+    };
+  });
+
+  $("calPrev").onclick = () => {
+    calCursor = new Date(calCursor.getFullYear(), calCursor.getMonth() - 1, 1);
+    renderCalendarSection();
+  };
+  $("calNext").onclick = () => {
+    calCursor = new Date(calCursor.getFullYear(), calCursor.getMonth() + 1, 1);
+    renderCalendarSection();
+  };
 
   // ── 데이터 로드/렌더 ──────────────────────────────────────
   async function loadRows() {
@@ -246,6 +321,7 @@
     if (error) { alert("불러오기 실패: " + error.message); return; }
     rows = data || [];
     render();
+    if (currentView === "calendar") renderCalendarSection();
   }
 
   function render() {
@@ -281,6 +357,7 @@
           ${r.applied_date ? `<span>${r.applied_date}</span>` : ""}
           ${r.region ? `<span>${escapeHtml(r.region)}</span>` : ""}
           ${salary ? `<span>${escapeHtml(salary)}</span>` : ""}
+          ${r.interview_at ? `<span>🗓 ${fmtInterview(r.interview_at)}</span>` : ""}
         </div>
         ${r.note ? `<div class="note">📝 ${escapeHtml(r.note)}</div>` : ""}
         <div class="actions">
@@ -288,7 +365,152 @@
           <button class="iconbtn edit" id="edit_${r.id}">수정</button>
           <button class="iconbtn del" id="delrow_${r.id}">삭제</button>
         </div>
+        ${r.interview_at ? `<div class="actions" style="margin-top:6px;"><a class="iconbtn" style="color:var(--accent);" href="${gcalUrl(r)}" target="_blank" rel="noopener">📅 구글 캘린더에 추가</a></div>` : ""}
       </div>`;
+  }
+
+  // ── 면접 캘린더 ──────────────────────────────────────
+  function toLocalInputValue(iso) {
+    if (!iso) return "";
+    const d = new Date(iso);
+    const pad = n => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  function fmtInterview(iso) {
+    if (!iso) return "";
+    const d = new Date(iso);
+    const days = ["일","월","화","수","목","금","토"];
+    const pad = n => String(n).padStart(2, "0");
+    return `${d.getMonth()+1}/${d.getDate()}(${days[d.getDay()]}) ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  function gcalDate(iso, addHours) {
+    const d = new Date(iso);
+    if (addHours) d.setHours(d.getHours() + addHours);
+    const pad = n => String(n).padStart(2, "0");
+    return `${d.getUTCFullYear()}${pad(d.getUTCMonth()+1)}${pad(d.getUTCDate())}T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}00Z`;
+  }
+
+  function gcalUrl(r) {
+    const start = gcalDate(r.interview_at, 0);
+    const end = gcalDate(r.interview_at, 1);
+    const text = encodeURIComponent(`${r.company} 면접`);
+    const details = encodeURIComponent(`${r.job_title || ""}${r.link_url ? "\n" + r.link_url : ""}`);
+    const location = encodeURIComponent(r.region || "");
+    return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${start}/${end}&details=${details}&location=${location}`;
+  }
+
+  function ymd(d) {
+    const pad = n => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  }
+
+  function interviewRows() {
+    return rows.filter(r => r.interview_at);
+  }
+
+  function wireCalEdit(list) {
+    list.forEach(r => {
+      const btn = document.getElementById("caledit_" + r.id);
+      if (btn) btn.onclick = () => openEdit(r);
+    });
+  }
+
+  function calEvtHtml(r) {
+    return `
+      <div class="card">
+        <div class="row1">
+          <div>
+            <div class="company">${escapeHtml(r.company)}</div>
+            <div class="title">${escapeHtml(r.job_title)}</div>
+          </div>
+          ${r.link_url ? `<a class="link" href="${escapeAttr(r.link_url)}" target="_blank" rel="noopener">공고보기</a>` : ""}
+        </div>
+        <div class="meta">
+          <span>🗓 ${fmtInterview(r.interview_at)}</span>
+          ${r.region ? `<span>${escapeHtml(r.region)}</span>` : ""}
+          <span>${escapeHtml(r.status)}</span>
+        </div>
+        <div class="actions" style="margin-top:6px;">
+          <a class="iconbtn" style="color:var(--accent);" href="${gcalUrl(r)}" target="_blank" rel="noopener">📅 구글 캘린더에 추가</a>
+          <button class="iconbtn edit" id="caledit_${r.id}">수정</button>
+        </div>
+      </div>`;
+  }
+
+  function renderCalendarSection() {
+    const evts = interviewRows();
+    $("calEmptyMsg").style.display = evts.length ? "none" : "block";
+    if (calViewMode === "month") {
+      $("calMonthWrap").style.display = evts.length ? "block" : "none";
+      $("calDayDetail").style.display = evts.length ? "block" : "none";
+      $("calAgenda").style.display = "none";
+      renderMonthGrid(evts);
+    } else {
+      $("calMonthWrap").style.display = "none";
+      $("calDayDetail").style.display = "none";
+      $("calAgenda").style.display = evts.length ? "block" : "none";
+      renderAgenda(evts);
+    }
+  }
+
+  function renderMonthGrid(evts) {
+    const y = calCursor.getFullYear(), m = calCursor.getMonth();
+    $("calMonthLabel").textContent = `${y}년 ${m+1}월`;
+    const byDate = {};
+    evts.forEach(r => {
+      const key = ymd(new Date(r.interview_at));
+      (byDate[key] = byDate[key] || []).push(r);
+    });
+    const firstDay = new Date(y, m, 1);
+    const startWeekday = firstDay.getDay();
+    const daysInMonth = new Date(y, m + 1, 0).getDate();
+    const todayKey = ymd(new Date());
+    let cells = "";
+    for (let i = 0; i < startWeekday; i++) cells += `<div class="calCell empty"></div>`;
+    for (let d = 1; d <= daysInMonth; d++) {
+      const key = ymd(new Date(y, m, d));
+      const evtsOfDay = byDate[key] || [];
+      const cls = ["calCell"];
+      if (key === todayKey) cls.push("today");
+      if (key === calSelectedDate) cls.push("selected");
+      cells += `<div class="${cls.join(" ")}" data-date="${key}">
+        <div class="dnum">${d}</div>
+        ${evtsOfDay.length ? `<div class="dot"></div>` : ""}
+      </div>`;
+    }
+    $("calGrid").innerHTML = `
+      <div class="calDow">${["일","월","화","수","목","금","토"].map(w => `<div>${w}</div>`).join("")}</div>
+      <div class="calDays">${cells}</div>`;
+    document.querySelectorAll("#calGrid .calCell[data-date]").forEach(el => {
+      el.onclick = () => {
+        calSelectedDate = el.dataset.date;
+        renderMonthGrid(evts);
+        renderDayDetail(byDate[el.dataset.date] || []);
+      };
+    });
+    if (calSelectedDate) {
+      renderDayDetail(byDate[calSelectedDate] || []);
+    } else {
+      $("calDayDetail").innerHTML = `<div class="empty" style="padding:24px 0;">날짜를 눌러 그날 면접을 확인하세요.</div>`;
+    }
+  }
+
+  function renderDayDetail(list) {
+    if (!list.length) {
+      $("calDayDetail").innerHTML = `<div class="empty" style="padding:24px 0;">이 날은 예정된 면접이 없어요.</div>`;
+      return;
+    }
+    const sorted = [...list].sort((a, b) => new Date(a.interview_at) - new Date(b.interview_at));
+    $("calDayDetail").innerHTML = sorted.map(r => calEvtHtml(r)).join("");
+    wireCalEdit(sorted);
+  }
+
+  function renderAgenda(evts) {
+    const sorted = [...evts].sort((a, b) => new Date(a.interview_at) - new Date(b.interview_at));
+    $("calAgenda").innerHTML = sorted.map(r => calEvtHtml(r)).join("");
+    wireCalEdit(sorted);
   }
 
   async function updateStatus(id, status) {
@@ -365,7 +587,7 @@
     editingId = null;
     $("sheetTitle").textContent = "지원 내역 추가";
     $("deleteBtn").style.display = "none";
-    ["company","title","region","link","note","salaryamount"].forEach(k => $("f_"+k).value = "");
+    ["company","title","region","link","note","salaryamount","interview"].forEach(k => $("f_"+k).value = "");
     $("f_jobtype").value = currentTab;
     $("f_status").value = "지원완료";
     $("f_salarytype").value = "";
@@ -391,6 +613,7 @@
     $("f_salaryamount").value = r.salary_amount || "";
     $("f_link").value = r.link_url || "";
     $("f_note").value = r.note || "";
+    $("f_interview").value = toLocalInputValue(r.interview_at);
     $("f_autourl").value = r.link_url || "";
     $("f_pastetext").value = "";
     $("autoFillMsg").textContent = "";
@@ -414,6 +637,7 @@
       salary_amount: $("f_salaryamount").value.trim() || null,
       link_url: $("f_link").value.trim() || null,
       note: $("f_note").value.trim() || null,
+      interview_at: $("f_interview").value ? new Date($("f_interview").value).toISOString() : null,
     };
     let error;
     if (editingId) {
