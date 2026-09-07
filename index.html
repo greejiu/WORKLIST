@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>워크 · 지원 내역</title>
+<title>워크리스트</title>
 <style>
   :root{
     --bg:#f7f7f8; --card:#ffffff; --line:#e6e6e9; --text:#1c1c1f; --sub:#7a7a82;
@@ -32,6 +32,7 @@
   .card .title{font-size:13px;color:var(--sub);margin-top:2px;}
   .card .meta{font-size:12px;color:var(--sub);margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;}
   .card .meta span{background:var(--bg);padding:2px 8px;border-radius:999px;}
+  .card .note{font-size:12px;color:var(--sub);margin-top:6px;line-height:1.4;white-space:pre-wrap;}
   .card .actions{display:flex;gap:6px;align-items:center;margin-top:10px;}
   select.status{flex:1;padding:6px 8px;border-radius:8px;border:1px solid var(--line);font-size:12px;background:#fff;}
   .card a.link{font-size:12px;color:var(--accent);text-decoration:none;}
@@ -73,7 +74,7 @@
 <body>
 
 <div id="authBox">
-  <h1>워크 · 지원 내역</h1>
+  <h1>워크리스트</h1>
   <div id="authMsg"></div>
   <input id="authEmail" type="email" placeholder="이메일" autocomplete="username" />
   <input id="authPw" type="password" placeholder="비밀번호 (8자 이상)" autocomplete="current-password" />
@@ -84,7 +85,7 @@
 <div id="app" style="display:none;">
   <header>
     <div style="position:relative;">
-      <h1>워크 · 지원 내역</h1>
+      <h1>워크리스트</h1>
       <button id="logoutBtn">로그아웃</button>
     </div>
     <div class="tabs">
@@ -281,6 +282,7 @@
           ${r.region ? `<span>${escapeHtml(r.region)}</span>` : ""}
           ${salary ? `<span>${escapeHtml(salary)}</span>` : ""}
         </div>
+        ${r.note ? `<div class="note">📝 ${escapeHtml(r.note)}</div>` : ""}
         <div class="actions">
           <select class="status" id="status_${r.id}">${statusOptions}</select>
           <button class="iconbtn edit" id="edit_${r.id}">수정</button>
